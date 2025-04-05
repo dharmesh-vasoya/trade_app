@@ -53,6 +53,13 @@ yarn-error.log*
 logs/
 *.lck # Lock files
 
+# Ignore root-level node_modules and package files (if they appear accidentally)
+/node_modules/
+/package.json
+/package-lock.json
+/yarn.lock
+/misc.txt
+
 # --- Operating System Generated Files ---
 # macOS
 .DS_Store

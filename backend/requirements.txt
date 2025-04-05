@@ -1,0 +1,9 @@
+Flask
+python-dotenv
+yfinance
+pandas
+duckdb
+pandas-ta
+Flask-CORS
+# numpy is usually a dependency of pandas/pandas-ta, but good to list if used directly
+# requests might be needed later for Upstox

@@ -1,4 +1,14 @@
 # This file is the main entry point to run the Flask application.
+import sys
+print("--- run.py ---")
+print("SYS.PATH:", sys.path) # See where Python is looking for modules
+try:
+    import upstox_client
+    print("SDK IMPORT OK in run.py")
+except Exception as e:
+    print(f"SDK IMPORT FAIL in run.py: {e}")
+print("--------------")
+
 from app import app # Import the app instance from our app package
 
 if __name__ == '__main__':

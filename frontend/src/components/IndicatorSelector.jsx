@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function IndicatorSelector({ availableIndicators, selectedIndicators, onIndicatorChange }) {
+function IndicatorSelector({ availableIndicators = [], selectedIndicators = {}, onIndicatorChange = () => {} }) {
 
   // Adapter function for Shadcn Checkbox item change to match event structure
   const handleCheckedChange = (checked, indicatorId) => {
@@ -57,10 +57,11 @@ function IndicatorSelector({ availableIndicators, selectedIndicators, onIndicato
           {availableIndicators.map((ind) => (
             <DropdownMenuCheckboxItem
               key={ind.id}
-              checked={selectedIndicators[ind.id] || false}
+              checked={selectedIndicators?.[ind.id] || false}
               onCheckedChange={(checked) => handleCheckedChange(checked, ind.id)}
+              disabled={!ind?.id}
             >
-              {ind.name}
+              {ind.name || 'Unnamed Indicator'}
             </DropdownMenuCheckboxItem>
           ))}
 

@@ -1,86 +1,24 @@
-/* frontend/src/App.css */
-#root {
-  /* max-width: 1280px; */ /* Remove max width */
-  margin: 0 auto;
-  padding: 1rem; /* Reduced padding */
-  text-align: center;
-  min-width: 100%; /* Ensure it takes full width */
-  box-sizing: border-box;
-}
-
 .App {
   display: flex;
   flex-direction: column;
-  align-items: stretch; /* Make children stretch */
-  min-height: 95vh;
+  height: 100vh;
 }
 
-h1 {
-  margin-bottom: 1rem;
-}
-
-/* Styles for selectors if needed */
 .selectors-container {
   display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap; /* Allow wrapping on smaller screens */
-  background-color: #f0f0f0;
-  padding: 10px;
-  border-radius: 5px;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: #f4f4f4;
+  border-bottom: 1px solid #ddd;
+  z-index: 2;
 }
 
-.timeframe-selector button {
-  margin: 0 5px;
-  padding: 5px 10px;
-  cursor: pointer;
-}
-.timeframe-selector button.active {
-  font-weight: bold;
-  background-color: #d0d0d0;
-}
-
-.indicator-selector {
-  /* Style checkbox area if needed */
-  text-align: left;
-  max-width: 400px; /* Limit width */
-}
-.indicator-selector label {
-  margin-right: 15px;
-  display: inline-block; /* Or block if preferred */
-}
-
-/* Style for the chart container to allow chart to fill space */
 .chart-container-wrapper {
- flex-grow: 1; /* Allow chart to take remaining vertical space */
- /* width: 100%; */ /* Handled by chart component logic */
- margin-bottom: 1rem; /* Space before table */
- min-height: 400px; /* Ensure minimum height */
+  flex-grow: 1;
+  position: relative;
 }
 
-/* Optional: Style for the data table */
-.data-table {
+.chart-container {
   width: 100%;
-  table-layout: auto;
-  margin-top: 10px;
-  font-size: small;
-  border-collapse: collapse;
-}
-.data-table th, .data-table td {
-  border: 1px solid #ccc;
-  padding: 4px;
-  text-align: right;
-}
-.data-table th:first-child, .data-table td:first-child {
-  text-align: left;
-}
-
-
-/* Basic loading/error styles */
-.loading, .error {
-  margin-top: 20px;
-  font-size: 1.2em;
-}
-.error {
-  color: red;
+  height: 100%;
 }

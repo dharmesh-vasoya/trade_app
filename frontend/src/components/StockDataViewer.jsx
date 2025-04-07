@@ -155,7 +155,11 @@ function StockDataViewer() {
         {!loadingInfo && stockInfo.metadata && (
           <ChartComponent
             key={`${symbol}-${exchange}-${selectedInterval}-${activeIndicatorParams.join(',')}`}
-            data={stockData?.data ?? []}
+            data={(stockData?.data ?? []).map(d => ({
+              ...d,
+              time: d.time * 1000 // Convert seconds → milliseconds
+            }))}
+            
             interval={selectedInterval}
             indicators={activeIndicatorParams}
           />

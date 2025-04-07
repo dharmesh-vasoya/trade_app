@@ -1,33 +1,9 @@
-# backend/app/stocks/routes.py
-# FINAL Version v5 - Convert Time to Epoch Sec, Supports D/W/M, Dynamic Indicators List
-
-from flask import Blueprint, jsonify, request, abort
-from datetime import date, datetime, timedelta # Import datetime & timezone
-import pandas as pd
-from typing import Dict, List, Any # Import Any
-
-# Import manager and repository functions needed
-from .manager import stock_manager
-from .repository import get_ohlcv_date_range
-# --- Use dynamic indicator list ---
-from app.indicators import get_available_indicator_info # Import dynamic list getter
-# ---------------------------------
-from .fetcher import get_cached_instrument_list # For stock list route
-
-print("Stock routes module loaded (Final v5 - D/W/M Support, Dynamic Indicators)")
-
-# --- List of currently supported intervals by the backend ---
-SUPPORTED_INTERVALS = ['1D', '1W', '1M'] # Removed '1H'
-# ---
-
-stocks_bp = Blueprint('stocks', __name__)
-
 # --- Helper Function to convert data for JSON ---
 # backend/app/stocks/routes.py
 # FINAL Version v5 - Convert Time to Epoch Sec, Supports D/W/M, Dynamic Indicators List
 
 from flask import Blueprint, jsonify, request, abort
-from datetime import date, datetime, timezone # Import datetime & timezone
+from datetime import date, datetime, timezone ,timedelta# Import datetime & timezone
 import pandas as pd
 from typing import Dict, List, Any
 

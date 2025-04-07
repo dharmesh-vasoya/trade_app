@@ -18,29 +18,32 @@ function ChartComponent({ data, interval, indicators = [] }) {
         background: { type: ColorType.Solid, color: '#ffffff' },
         textColor: '#333333',
       },
-      width: container.clientWidth || 600,
-      height: container.clientHeight || 400,
-      timeScale: { timeVisible: true },
+      width: container.clientWidth || window.innerWidth,
+      height: container.clientHeight || window.innerHeight,
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: interval.includes('min') || interval.includes('s'),
+      },
+      
       crosshair: { mode: 1 },
       grid: { vertLines: { visible: false }, horzLines: { color: '#E6E6E6' } },
     });
 
     chartRef.current = chart;
 
-    const handleResize = debounce(() => {
+    const resizeObserver = new ResizeObserver(() => {
       if (chart && container) {
         chart.applyOptions({
-          width: container.clientWidth || 600,
-          height: container.clientHeight || 400,
+          width: container.clientWidth,
+          height: container.clientHeight,
         });
       }
-    }, 100);
+    });
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+    resizeObserver.observe(container);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       chart.remove();
     };
   }, []);
@@ -54,7 +57,7 @@ function ChartComponent({ data, interval, indicators = [] }) {
 
     const formattedData = data
       .map((item) => {
-        const time = Number(item.time);
+        const time = Math.floor(Number(item.time) / 1000);
         if (!time || isNaN(time)) return null;
 
         const base = {
@@ -93,7 +96,7 @@ function ChartComponent({ data, interval, indicators = [] }) {
     }
     seriesRefs.current.candlestick.setData(candleData);
 
-    // --- Volume Histogram ---
+    // --- Volume Histogram (smaller pane height) ---
     const volumeData = formattedData.map(({ time, close, open, volume }) => ({
       time,
       value: volume,
@@ -105,7 +108,7 @@ function ChartComponent({ data, interval, indicators = [] }) {
         color: '#26a69a',
         priceFormat: { type: 'volume' },
         priceScaleId: '',
-        scaleMargins: { top: 0.9, bottom: 0 },
+        scaleMargins: { top: 0.97, bottom: 0 }, // smaller volume height
         title: 'Volume',
       });
     }
@@ -175,14 +178,10 @@ function ChartComponent({ data, interval, indicators = [] }) {
   return (
     <div
       ref={chartContainerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        minHeight: '400px',
-        position: 'relative',
-      }}
+      className="chart-container"
     />
   );
+  
 }
 
 export default ChartComponent;

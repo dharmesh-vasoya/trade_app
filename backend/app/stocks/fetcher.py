@@ -42,8 +42,8 @@ def fetch_stock_data_yf(symbol: str, start_date: str, end_date: str, exchange: s
     Fetches historical OHLCV data using yf.download() for a specific interval.
     """
     # Construct ticker
-    ticker_symbol = f"{symbol.upper()}.{exchange.upper()}" if exchange.upper() in ["NSE", "BSE", "NS"] else symbol.upper()
-
+    # Ensure the ticker symbol is correctly formatted for yfinance
+    ticker_symbol = f"{symbol}.{exchange}" if exchange == "NS" else symbol
     # Map interval to yfinance format
     yf_interval = YFINANCE_INTERVAL_MAP.get(interval.upper())
     if not yf_interval:

@@ -128,8 +128,15 @@ class StockManager:
                 indicator_instance = get_indicator(indicator_request);
                 if indicator_instance:
                     indicator_series = indicator_instance.calculate(data_to_process);
-                    if indicator_series is not None: data_to_process[indicator_instance.get_column_name()] = indicator_series; print(f"Manager GetData: Added '{indicator_instance.get_column_name()}'")
-                    else: print(f"Manager GetData: Calc failed for '{indicator_request}'")
+                    if indicator_series is not None:
+                        if isinstance(indicator_series, pd.DataFrame):
+                            for col in indicator_series.columns:
+                                data_to_process[col] = indicator_series[col]
+                                print(f"Manager GetData: Added '{col}' (multi-column)")
+                        else:
+                            data_to_process[indicator_instance.get_column_name()] = indicator_series
+                            print(f"Manager GetData: Added '{indicator_instance.get_column_name()}' (single-column)")
+
                 else: print(f"Manager GetData: Could not create indicator for '{indicator_request}'")
 
 

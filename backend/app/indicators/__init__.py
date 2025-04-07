@@ -81,6 +81,9 @@ def get_available_indicator_info() -> List[Dict]:
 # when the modules are loaded and try to register themselves.
 print("Importing indicator modules to trigger registration...")
 from . import sma
+from . import rsi 
+from . import macd
+from . import ema
 # from . import ema # Uncomment when ema.py is created
 # from . import rsi # Uncomment when rsi.py is created
 # from . import macd # Uncomment when macd.py is created

@@ -23,7 +23,6 @@ class Config:
     UPSTOX_API_KEY = os.environ.get('UPSTOX_API_KEY')
     UPSTOX_API_SECRET = os.environ.get('UPSTOX_API_SECRET')
     UPSTOX_REDIRECT_URI = os.environ.get('UPSTOX_REDIRECT_URI')
-    UPSTOX_ACCESS_TOKEN = os.environ.get('UPSTOX_ACCESS_TOKEN')
     # Add other API keys as needed (e.g., for yFinance if needed, or other brokers)
 
     # Create data directory if it doesn't exist

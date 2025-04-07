@@ -10,13 +10,14 @@ from .manager import stock_manager
 from .repository import get_ohlcv_date_range # Keep this import for /info route
 # Import indicator info getter
 from app.indicators import get_available_indicator_info
-from .fetcher import get_cached_instrument_list # Add this
+from .fetcher import get_cached_instrument_list
+
 print("Stock routes module loaded (Interval Support + Final NaN Fix)")
 
 # --- List of currently supported intervals by the backend ---
 # This should align with _get_ohlcv_table_name in repository.py and YFINANCE_INTERVAL_MAP in fetcher.py
 # We only implemented '1D' and '1W' storage/fetching so far.
-SUPPORTED_INTERVALS = ['1D', '1W', '1M', '1H'] # Add '1H'
+SUPPORTED_INTERVALS = ['1D', '1W', '1M'] # <-- Add '1M'
 # ---
 
 stocks_bp = Blueprint('stocks', __name__)
@@ -142,34 +143,42 @@ def get_stock_data_recent(exchange: str, symbol: str):
 # ============================================================
 @stocks_bp.route('/<string:exchange>/<string:symbol>/info', methods=['GET'])
 def get_stock_info_route(exchange: str, symbol: str):
+    """
+    Returns basic stock metadata, available intervals, and the
+    available date range for a requested interval (default '1D').
+    """
     symbol = symbol.upper(); exchange = exchange.upper()
-    # Default interval for range check remains '1D' unless specified
+    # Get interval for which to report date range (default '1D')
     interval_for_range = request.args.get('interval', '1D').upper()
-    print(f"API: Requesting info for {symbol}/{exchange}, date range for interval {interval_for_range}")
+    print(f"API: Requesting info for {symbol} ({exchange}), date range for interval {interval_for_range}")
 
     stock_meta = stock_manager.ensure_stock_metadata(symbol, exchange)
-    if not stock_meta: abort(404, description=f"Could not find/create metadata for {symbol}/{exchange}.")
+    # Note: ensure_stock_metadata might trigger bulk fetch if stock is new,
+    # so date range might change right after. Fetch range *after* ensuring metadata.
 
+    if not stock_meta:
+         abort(404, description=f"Could not find or create metadata for {symbol} ({exchange}).")
+
+    # Get date range for the requested interval
     date_range = None
-    date_range_key = f"date_range_{interval_for_range}" # Dynamic key name
     if interval_for_range in SUPPORTED_INTERVALS:
-         # Returns dict with 'min_time', 'max_time' which are date or datetime objects
          date_range = get_ohlcv_date_range(symbol, exchange, interval=interval_for_range)
-    else: print(f"Warning: Date range requested for unsupported interval: {interval_for_range}")
+    else:
+         print(f"Warning: Date range requested for unsupported interval: {interval_for_range}")
 
-    # Serialize date/datetime objects correctly for JSON
+
+    # Convert date objects to strings for JSON
     date_range_str = None
     if date_range:
-        # jsonify handles date/datetime serialization to ISO 8601 strings automatically
         date_range_str = {
-            "min_time": date_range["min_time"], # Pass objects directly
-            "max_time": date_range["max_time"]
+            "min_date": date_range["min_date"].strftime('%Y-%m-%d'),
+            "max_date": date_range["max_date"].strftime('%Y-%m-%d')
         }
 
     return jsonify({
         "metadata": stock_meta.__dict__,
-        "supported_intervals": SUPPORTED_INTERVALS,
-        date_range_key: date_range_str # Include range for the queried interval
+        "supported_intervals": SUPPORTED_INTERVALS, # List intervals backend can handle
+        f"date_range_{interval_for_range}": date_range_str # Date range for the specific interval requested
     }), 200
 
 
@@ -179,33 +188,16 @@ def get_stock_info_route(exchange: str, symbol: str):
 @stocks_bp.route('/available-indicators', methods=['GET'])
 def get_available_indicators():
     """Returns a list of available indicators registered in the backend."""
-    print("API: Returning available indicators list (Using TEMPORARY HARDCODED list)...")
-    # --- TEMPORARY HARDCODED LIST ---
-    # Comment out the dynamic call for now to debug the AttributeError: 'float'
-    # available = get_available_indicator_info()
-    available = [
-         {"id": "SMA", "name": "Simple Moving Average", "example_format": "SMA_<length>", "default_params": "SMA_20"}
-         # Add EMA, RSI etc. here manually if you want them available for testing
-    ]
-    # --- END TEMPORARY ---
-    return jsonify(available), 200 # Ensure status code is integer 200
+    available = get_available_indicator_info() # Get list dynamically
+    print("API: Returning available indicators list (Dynamically generated).")
+    return jsonify(available), 200
 
+# Make sure this route exists
 @stocks_bp.route('/list', methods=['GET'])
 def get_stock_list():
-    """
-    Returns a list of available equity instruments for a given exchange.
-    Example: /api/stocks/list?exchange=NSE
-    """
-    exchange = request.args.get('exchange', 'NSE').upper() # Default to NSE
+    """Returns list of equity instruments for a given exchange from cache/download."""
+    exchange = request.args.get('exchange', 'NSE').upper()
     print(f"API: Request received for stock list for exchange: {exchange}")
-
-    # Call the helper function from fetcher
     stock_list = get_cached_instrument_list(exchange)
-
-    # Check if list is empty (either download failed or no equities found)
-    if not stock_list:
-        # Return empty list or an error? Let's return empty list with success.
-        print(f"API: No stocks found or error loading list for {exchange}.")
-        return jsonify([]) # Return empty list
-
+    if not stock_list: print(f"API: No stocks found or error loading list for {exchange}."); return jsonify([])
     return jsonify(stock_list)

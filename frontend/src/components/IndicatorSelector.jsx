@@ -1,10 +1,8 @@
-// frontend/src/components/IndicatorSelector.jsx
 import React from 'react';
-// Import a suitable icon from lucide-react (make sure you installed it: npm install lucide-react or yarn add lucide-react)
-import { SlidersHorizontal } from 'lucide-react';
+import './IndicatorSelector.css';
 
-// Import Shadcn/UI components
-import { Button } from "@/components/ui/button";
+import { SlidersHorizontal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -12,62 +10,78 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 
-function IndicatorSelector({ availableIndicators = [], selectedIndicators = {}, onIndicatorChange = () => {} }) {
-
-  // Adapter function for Shadcn Checkbox item change to match event structure
-  const handleCheckedChange = (checked, indicatorId) => {
-    console.log(`IndicatorSelector: ${indicatorId} checked state changed to: ${checked}`);
-    // Create a synthetic event object expected by the handler in StockDataViewer
-    onIndicatorChange({
-      target: {
-        name: indicatorId,    // The ID of the indicator (e.g., "SMA")
-        checked: checked,     // The new boolean checked state
-        type: 'checkbox'
-      }
-    });
-  };
-
-  // Check if indicators are missing despite non-empty list
-  const indicatorsMissing = availableIndicators.length > 0 &&
-                            availableIndicators.every(ind => !ind?.id);
+function IndicatorSelector({
+  availableIndicators = [],
+  selectedIndicators = {},
+  onToggle = () => {},
+  onParamChange = () => {},
+}) {
+  const indicatorsMissing =
+    availableIndicators.length > 0 &&
+    availableIndicators.every((ind) => !ind?.id);
 
   return (
     <div className="indicator-selector">
       <DropdownMenu>
-        {/* Icon Button as the trigger */}
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon">
+          <Button
+            variant="outline"
+            size="icon"
+            className="indicator-trigger-btn"
+            title="Select Indicators"
+          >
             <SlidersHorizontal className="h-4 w-4" />
-            <span className="sr-only">Indicators</span> {/* For screen readers */}
+            <span className="sr-only">Indicators</span>
           </Button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent className="w-56">
-          <DropdownMenuLabel>Available Indicators</DropdownMenuLabel>
+        <DropdownMenuContent className="indicator-dropdown w-72 max-h-[400px] overflow-y-auto">
+          <DropdownMenuLabel className="dropdown-header">
+            Available Indicators
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
 
-          {/* Show loading message if list is empty */}
           {availableIndicators.length === 0 && (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading...</div>
+            <div className="dropdown-empty">Loading...</div>
           )}
 
-          {/* Render checkbox items */}
           {availableIndicators.map((ind) => (
-            <DropdownMenuCheckboxItem
-              key={ind.id}
-              checked={selectedIndicators?.[ind.id] || false}
-              onCheckedChange={(checked) => handleCheckedChange(checked, ind.id)}
-              disabled={!ind?.id}
-            >
-              {ind.name || 'Unnamed Indicator'}
-            </DropdownMenuCheckboxItem>
+            <div key={ind.id} className="indicator-item px-2 py-1">
+              <DropdownMenuCheckboxItem
+                checked={selectedIndicators?.[ind.id]?.enabled || false}
+                onCheckedChange={(checked) => onToggle(ind.id, checked)}
+                disabled={!ind?.id}
+              >
+                {ind.name || 'Unnamed Indicator'}
+              </DropdownMenuCheckboxItem>
+
+              {/* Optional: Show parameter inputs */}
+              {selectedIndicators?.[ind.id]?.enabled &&
+                ind?.default_params &&
+                Object.entries(ind.default_params).map(([paramKey, defaultVal]) => (
+                  <div key={paramKey} className="param-input px-4 py-1 text-xs">
+                    <label>
+                      {paramKey}:{' '}
+                      <input
+                        type="number"
+                        defaultValue={
+                          selectedIndicators[ind.id]?.params?.[paramKey] ?? defaultVal
+                        }
+                        onChange={(e) =>
+                          onParamChange(ind.id, paramKey, e.target.value)
+                        }
+                        className="w-16 ml-2 text-right border rounded px-1"
+                      />
+                    </label>
+                  </div>
+                ))}
+            </div>
           ))}
 
-          {/* Show fallback message if no valid indicators */}
           {indicatorsMissing && (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">No indicators available.</div>
+            <div className="dropdown-empty">No indicators available.</div>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

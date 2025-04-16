@@ -29,25 +29,52 @@ function App() {
   const [selectedIndicators, setSelectedIndicators] = useState({});
   const [error, setError] = useState(null);
 
-  // Fetch indicator metadata
+  const [connecting, setConnecting] = useState(true);
+  const [connectionError, setConnectionError] = useState(null);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+
+  // Backend check
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/stocks/available-indicators')
-      .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
-      .then(data => {
+    const maxRetries = 5;
+
+    const checkBackendAvailability = async (attempt = 0) => {
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/stocks/available-indicators');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
         setAvailableIndicators(data || []);
         const initial = {};
-        data.forEach(ind => (initial[ind.id] = false));
+        data.forEach(ind => {
+          initial[ind.id] = {
+            enabled: false,
+            params: ind.default_params || {}
+          };
+        });
         setSelectedIndicators(initial);
-      })
-      .catch(err => {
-        console.error("Error fetching indicators:", err);
-        setError("Failed to fetch indicators");
-      });
+
+        setConnecting(false);
+        setConnectionError(null);
+      } catch (err) {
+        console.error(`Connection attempt ${attempt + 1} failed:`, err);
+        setConnectionAttempts(attempt + 1);
+
+        if (attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt) * 500;
+          setTimeout(() => checkBackendAvailability(attempt + 1), delay);
+        } else {
+          setConnecting(false);
+          setConnectionError("Can't connect to backend after several attempts.");
+        }
+      }
+    };
+
+    checkBackendAvailability();
   }, []);
 
-  // Fetch stock info (metadata, supported intervals, min time)
   useEffect(() => {
-    if (!symbol || !exchange) return;
+    if (!symbol || !exchange || connecting || connectionError) return;
+
     const url = `http://127.0.0.1:5000/api/stocks/${exchange}/${symbol}/info?interval=${interval}`;
     fetch(url)
       .then(res => res.ok ? res.json() : Promise.reject(res.statusText))
@@ -57,15 +84,14 @@ function App() {
       })
       .catch(err => {
         console.error("Error fetching stock info:", err);
-        setError("Failed to fetch stock info");
         setLoading(false);
+        setError(`Failed to fetch stock info for ${symbol}`);
       });
-  }, [symbol, exchange]);
+  }, [symbol, exchange, interval, connecting, connectionError]);
 
-  // Fetch OHLCV chart data when symbol, interval, or indicators change
   useEffect(() => {
-    if (!stockInfo?.metadata || availableIndicators.length === 0) return;
-  
+    if (!stockInfo?.metadata || availableIndicators.length === 0 || connecting || connectionError) return;
+
     const endDate = new Date();
     let startDate = subtractDays(endDate, 730);
     const minTime = stockInfo?.[`date_range_${interval}`]?.min_time;
@@ -73,23 +99,25 @@ function App() {
       const minDate = new Date(minTime);
       if (minDate > startDate) startDate = minDate;
     }
-  
+
     const startStr = formatDate(startDate);
     const endStr = formatDate(endDate);
-  
+
     const selectedIndicatorParams = Object.entries(selectedIndicators)
-      .filter(([_, val]) => val)
-      .map(([id]) => availableIndicators.find(i => i.id === id)?.default_params || id)
-      .join(',');
-  
+      .filter(([_, config]) => config.enabled)
+      .map(([id, config]) => ({
+        id,
+        params: config.params
+      }));
+
     const url = new URL(`http://127.0.0.1:5000/api/stocks/${exchange}/${symbol}/data`);
     url.searchParams.set("interval", interval);
     url.searchParams.set("start_date", startStr);
     url.searchParams.set("end_date", endStr);
-    if (selectedIndicatorParams) {
-      url.searchParams.set("indicators", selectedIndicatorParams);
+    if (selectedIndicatorParams.length > 0) {
+      url.searchParams.set("indicators", JSON.stringify(selectedIndicatorParams));
     }
-  
+
     setLoading(true);
     fetch(url.toString())
       .then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err.description || res.statusText)))
@@ -101,12 +129,11 @@ function App() {
       })
       .catch(err => {
         console.error("Error fetching chart data:", err);
-        setError("Failed to load chart");
         setStockData(null);
         setLoading(false);
+        setError(`Failed to load chart data for ${symbol}`);
       });
-  }, [symbol, exchange, interval, selectedIndicators, availableIndicators]);
-  
+  }, [symbol, exchange, interval, selectedIndicators, availableIndicators, stockInfo, connecting, connectionError]);
 
   // Handlers
   const handleStockSelect = (sym, exch) => {
@@ -121,55 +148,81 @@ function App() {
     if (val !== interval) setInterval(val);
   }, [interval]);
 
-  const handleIndicatorChange = useCallback((event) => {
-    const { name, checked } = event.target;
-    setSelectedIndicators((prev) => ({ ...prev, [name]: checked }));
+  const handleIndicatorToggle = useCallback((id, enabled) => {
+    setSelectedIndicators(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        enabled
+      }
+    }));
   }, []);
 
-  const activeIndicatorParams = Object.entries(selectedIndicators)
-    .filter(([_, selected]) => selected)
-    .map(([id]) => availableIndicators.find(ind => ind.id === id)?.default_params || id);
+  const handleIndicatorParamChange = useCallback((indicatorId, paramKey, value) => {
+    setSelectedIndicators(prev => ({
+      ...prev,
+      [indicatorId]: {
+        ...prev[indicatorId],
+        params: {
+          ...prev[indicatorId].params,
+          [paramKey]: Number(value)
+        }
+      }
+    }));
+  }, []);
 
-  // UI
   return (
     <div className="App">
-      <div className="selectors-container">
-        <IntervalSelector
-          supportedIntervals={stockInfo?.supported_intervals || ['1D']}
-          selectedInterval={interval}
-          onIntervalChange={handleIntervalChange}
-        />
-        <StockSelector
-          currentSymbol={symbol}
-          currentExchange={exchange}
-          onStockSelect={handleStockSelect}
-        />
-        <IndicatorSelector
-          availableIndicators={availableIndicators}
-          selectedIndicators={selectedIndicators}
-          onIndicatorChange={handleIndicatorChange}
-        />
-      </div>
+      {connecting && (
+        <div className="loading">Connecting to backend... (Attempt {connectionAttempts + 1})</div>
+      )}
 
-      {loading && <div className="loading">Loading...</div>}
-      {error && !loading && <div className="error">{error}</div>}
+      {!connecting && connectionError && (
+        <div className="error">{connectionError}</div>
+      )}
 
-      <div className="chart-container-wrapper">
-        {!loading && stockData && (
-          <ChartComponent
-            key={`${symbol}-${exchange}-${interval}-${activeIndicatorParams.join(',')}`}
-            data={stockData}
-            interval={interval}
-            indicators={activeIndicatorParams}
-          />
-        )}
-
-        {!loading && !error && (!stockData || stockData.length === 0) && (
-          <div className="text-center text-gray-500 p-4">
-            No data for {symbol} [{interval}]
+      {!connecting && !connectionError && (
+        <>
+          <div className="selectors-container">
+            <IntervalSelector
+              supportedIntervals={stockInfo?.supported_intervals || ['1D']}
+              selectedInterval={interval}
+              onIntervalChange={handleIntervalChange}
+            />
+            <StockSelector
+              currentSymbol={symbol}
+              currentExchange={exchange}
+              onStockSelect={handleStockSelect}
+            />
+            <IndicatorSelector
+              availableIndicators={availableIndicators}
+              selectedIndicators={selectedIndicators}
+              onToggle={handleIndicatorToggle}
+              onParamChange={handleIndicatorParamChange}
+            />
           </div>
-        )}
-      </div>
+
+          {loading && <div className="loading">Loading...</div>}
+          {error && !loading && <div className="error">{error}</div>}
+
+          <div className="chart-container-wrapper">
+            {!loading && stockData && (
+              <ChartComponent
+                key={`${symbol}-${exchange}-${interval}-${JSON.stringify(selectedIndicators)}`}
+                data={stockData}
+                interval={interval}
+                indicators={selectedIndicators}
+              />
+            )}
+
+            {!loading && !error && (!stockData || stockData.length === 0) && (
+              <div className="text-center text-gray-500 p-4">
+                No data for {symbol} [{interval}]
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

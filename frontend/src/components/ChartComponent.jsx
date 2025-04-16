@@ -1,8 +1,9 @@
+// frontend/src/components/ChartComponent.jsx
 import React, { useEffect, useRef } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import { debounce } from 'lodash-es';
 
-function ChartComponent({ data, interval, indicators = [] }) {
+function ChartComponent({ data, interval, indicators = {} }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const seriesRefs = useRef({});
@@ -24,7 +25,6 @@ function ChartComponent({ data, interval, indicators = [] }) {
         timeVisible: true,
         secondsVisible: interval.includes('min') || interval.includes('s'),
       },
-      
       crosshair: { mode: 1 },
       grid: { vertLines: { visible: false }, horzLines: { color: '#E6E6E6' } },
     });
@@ -55,6 +55,10 @@ function ChartComponent({ data, interval, indicators = [] }) {
 
     if (data.length === 0) return;
 
+    const enabledIndicators = Object.entries(indicators)
+      .filter(([_, isEnabled]) => isEnabled)
+      .map(([key]) => key);
+
     const formattedData = data
       .map((item) => {
         const time = Math.floor(Number(item.time) / 1000);
@@ -69,7 +73,7 @@ function ChartComponent({ data, interval, indicators = [] }) {
           volume: +item.volume,
         };
 
-        indicators.forEach((key) => {
+        enabledIndicators.forEach((key) => {
           if (item[key] != null && !isNaN(item[key])) {
             base[key] = +item[key];
           }
@@ -96,7 +100,7 @@ function ChartComponent({ data, interval, indicators = [] }) {
     }
     seriesRefs.current.candlestick.setData(candleData);
 
-    // --- Volume Histogram (smaller pane height) ---
+    // --- Volume Histogram ---
     const volumeData = formattedData.map(({ time, close, open, volume }) => ({
       time,
       value: volume,
@@ -108,14 +112,14 @@ function ChartComponent({ data, interval, indicators = [] }) {
         color: '#26a69a',
         priceFormat: { type: 'volume' },
         priceScaleId: '',
-        scaleMargins: { top: 0.97, bottom: 0 }, // smaller volume height
+        scaleMargins: { top: 0.97, bottom: 0 },
         title: 'Volume',
       });
     }
     seriesRefs.current.volume.setData(volumeData);
 
-    // --- Indicators ---
-    indicators.forEach((indicatorKey) => {
+    // --- Indicator Lines ---
+    enabledIndicators.forEach((indicatorKey) => {
       const indicatorData = formattedData
         .map((row) => {
           const value = row[indicatorKey];
@@ -139,7 +143,7 @@ function ChartComponent({ data, interval, indicators = [] }) {
       dataLoadedRef.current = true;
     }
 
-    // --- Volume Hover Tooltip ---
+    // --- Volume Tooltip ---
     if (!volumeTooltipRef.current) {
       volumeTooltipRef.current = document.createElement('div');
       volumeTooltipRef.current.style = `
@@ -176,12 +180,8 @@ function ChartComponent({ data, interval, indicators = [] }) {
   }, [data, interval, indicators]);
 
   return (
-    <div
-      ref={chartContainerRef}
-      className="chart-container"
-    />
+    <div ref={chartContainerRef} className="chart-container" />
   );
-  
 }
 
 export default ChartComponent;
